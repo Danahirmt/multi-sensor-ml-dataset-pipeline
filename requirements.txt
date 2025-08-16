@@ -1,0 +1,17 @@
+numpy
+pandas
+opencv-python-headless
+torch
+
+# MCAP + ROS2 message deserialization
+mcap
+mcap-ros2-support
+
+# utils
+tqdm
+pyyaml
+matplotlib
+scipy
+pyarrow
+
+pointcloud2 @ git+https://github.com/mrkbac/pointcloud2.git

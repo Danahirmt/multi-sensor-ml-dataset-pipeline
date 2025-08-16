@@ -1,0 +1,8 @@
+mcap_path: "kitti.mcap"
+manifest: "out/chunks_demo.json"
+out_dir: "out/dataset"
+pair_tolerance_ms: 50
+cam_frame: "camera_frame"
+lidar_frame: "lidar_frame"
+write_parquet: true
+debug: true

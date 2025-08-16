@@ -1,0 +1,34 @@
+{
+  "mcap": "/workspace/kitti.mcap",
+  "lidar_topic": "/sensor/lidar/front/points",
+  "camera_topic": "/sensor/camera/left/image_raw/compressed",
+  "max_gap_ms": 150,
+  "min_length_s": 20,
+  "time_source": "sensor",
+  "chunks": [
+    {
+      "id": 0,
+      "start_ns": 1749641679709714944,
+      "end_ns": 1749641700341444864,
+      "duration_s": 20.632,
+      "lidar_msgs": 200,
+      "camera_msgs": 200
+    },
+    {
+      "id": 1,
+      "start_ns": 1749641742009725184,
+      "end_ns": 1749641762529234944,
+      "duration_s": 20.52,
+      "lidar_msgs": 199,
+      "camera_msgs": 199
+    },
+    {
+      "id": 2,
+      "start_ns": 1749641762736594944,
+      "end_ns": 1749641783266415104,
+      "duration_s": 20.53,
+      "lidar_msgs": 199,
+      "camera_msgs": 199
+    }
+  ]
+}

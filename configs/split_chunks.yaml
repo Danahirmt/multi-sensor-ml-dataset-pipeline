@@ -1,0 +1,6 @@
+mcap_path: "kitti.mcap"
+out: "out/chunks_demo.json"
+min_length_s: 20
+max_gap_ms: 150
+time_source: "sensor"
+debug: true

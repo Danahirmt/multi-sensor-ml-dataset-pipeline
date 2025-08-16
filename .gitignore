@@ -205,3 +205,13 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+
+# Data
+*.mcap
+out/dataset/
+!out/figs/
+!out/chunks_demo.json
+!out/dataset_tags.json
+!out/dataset_tags.csv
+

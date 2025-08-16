@@ -125,9 +125,9 @@ class MultiSensorNuScenesLite(Dataset):
 
         # Build sample index across scenes (reading samples.json)
         self.samples: List[Dict] = []
-        self._scene_calib_cache: Dict[
-            str, Dict[str, str]
-        ] = {}  # scene -> {"cam_intrinsics": ..., "static_extrinsics": ...}
+        self._scene_calib_cache: Dict[str, Dict[str, str]] = (
+            {}
+        )  # scene -> {"cam_intrinsics": ..., "static_extrinsics": ...}
 
         for scene in self.scenes:
             scene_dir = os.path.join(root, scene)

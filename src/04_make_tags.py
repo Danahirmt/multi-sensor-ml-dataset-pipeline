@@ -214,12 +214,21 @@ def process_scene(scene_dir: str, max_poses_to_sample: int = 100) -> Tuple[dict,
             "width": width,
             "height": height,
             "distortion_model": cam_model,
-            "intrinsics_file": os.path.relpath(cam_json_path, scene_dir)
-            if _exists(cam_json_path)
-            else "",
+            "intrinsics_file": (
+                os.path.relpath(cam_json_path, scene_dir)
+                if _exists(cam_json_path)
+                else ""
+            ),
         },
-        "extrinsics": {"present": has_extr, "file": extr_file_rel,},
-        "lidar_points": {"avg": int(avg_pts), "min": min_pts, "max": max_pts,},
+        "extrinsics": {
+            "present": has_extr,
+            "file": extr_file_rel,
+        },
+        "lidar_points": {
+            "avg": int(avg_pts),
+            "min": min_pts,
+            "max": max_pts,
+        },
         "pose": {
             "present": has_pose,
             "coverage": round(pose_coverage, 3),

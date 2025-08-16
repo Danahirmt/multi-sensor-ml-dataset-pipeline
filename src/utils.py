@@ -51,7 +51,6 @@ Camera calibration:
 
 """
 
-
 import datetime as _dt
 import numpy as np
 import json
@@ -283,7 +282,7 @@ def solve_chain(static_graph, src, dst):
         cur, T_acc = q.popleft()
         if cur == dst:
             return T_acc
-        for (nbr, T_cur_nbr) in static_graph.get(cur, []):
+        for nbr, T_cur_nbr in static_graph.get(cur, []):
             if nbr in seen:
                 continue
             seen.add(nbr)

@@ -42,16 +42,20 @@ from typing import Dict, List, Tuple
 try:
     import pyarrow as pa
     import pyarrow.parquet as pq
+
     _HAS_PA = True
 except ImportError:
     _HAS_PA = False
 
+
 def _exists(p: str) -> bool:
     return os.path.exists(p)
+
 
 def _read_json(path: str) -> dict:
     with open(path, "r") as f:
         return json.load(f)
+
 
 def _find_any_extrinsics_file(calib_dir: str) -> str:
     if not _exists(calib_dir):
@@ -61,6 +65,7 @@ def _find_any_extrinsics_file(calib_dir: str) -> str:
             return os.path.join(calib_dir, fn)
     return ""
 
+
 def _count_points_fast(bin_path: str) -> int:
     """Each point is 4 float32 = 16 bytes. Count = filesize // 16."""
     try:
@@ -69,19 +74,23 @@ def _count_points_fast(bin_path: str) -> int:
     except OSError:
         return 0
 
+
 def _compute_dt_stats_ns(timestamps_ns: List[int]) -> Tuple[float, float]:
     """Return (median_dt_ms, p95_dt_ms) from consecutive timestamp diffs."""
     if len(timestamps_ns) < 2:
         return 0.0, 0.0
     diffs_ms = []
     for i in range(1, len(timestamps_ns)):
-        diffs_ms.append((timestamps_ns[i] - timestamps_ns[i-1]) / 1e6)
+        diffs_ms.append((timestamps_ns[i] - timestamps_ns[i - 1]) / 1e6)
     diffs_ms.sort()
     med = statistics.median(diffs_ms)
-    p95 = diffs_ms[int(0.95 * (len(diffs_ms)-1))] if diffs_ms else 0.0
+    p95 = diffs_ms[int(0.95 * (len(diffs_ms) - 1))] if diffs_ms else 0.0
     return float(med), float(p95)
 
-def _collect_pose_pairs(scene_dir: str, frames: List[dict], max_poses_to_sample: int = 100) -> List[Tuple[str, str]]:
+
+def _collect_pose_pairs(
+    scene_dir: str, frames: List[dict], max_poses_to_sample: int = 100
+) -> List[Tuple[str, str]]:
     pairs = []
     n = 0
     for fr in frames:
@@ -93,7 +102,7 @@ def _collect_pose_pairs(scene_dir: str, frames: List[dict], max_poses_to_sample:
             continue
         try:
             d = _read_json(path)
-            pairs.append((d.get("frame_from",""), d.get("frame_to","")))
+            pairs.append((d.get("frame_from", ""), d.get("frame_to", "")))
             n += 1
             if n >= max_poses_to_sample:
                 break
@@ -108,7 +117,10 @@ def _collect_pose_pairs(scene_dir: str, frames: List[dict], max_poses_to_sample:
             seen.add(p)
     return uniq
 
-def _tags_from_stats(has_pose: bool, has_extr: bool, w: int, h: int, avg_pts: float, fps: float) -> List[str]:
+
+def _tags_from_stats(
+    has_pose: bool, has_extr: bool, w: int, h: int, avg_pts: float, fps: float
+) -> List[str]:
     tags = []
     tags.append("pose" if has_pose else "no-pose")
     tags.append("extrinsics" if has_extr else "no-extrinsics")
@@ -126,6 +138,7 @@ def _tags_from_stats(has_pose: bool, has_extr: bool, w: int, h: int, avg_pts: fl
         tags.append("sparse-lidar")
     return tags
 
+
 def process_scene(scene_dir: str, max_poses_to_sample: int = 100) -> Tuple[dict, dict]:
     """Return (tags_json, flat_row_for_table)."""
     scene_id = os.path.basename(scene_dir)
@@ -137,7 +150,7 @@ def process_scene(scene_dir: str, max_poses_to_sample: int = 100) -> Tuple[dict,
     data = _read_json(idx_path)
     frames = data.get("frames", [])
     start_ns = int(data.get("start_ns", 0))
-    end_ns   = int(data.get("end_ns", 0))
+    end_ns = int(data.get("end_ns", 0))
     duration_s = (end_ns - start_ns) / 1e9 if end_ns > start_ns else 0.0
     num_frames = len(frames)
 
@@ -179,7 +192,9 @@ def process_scene(scene_dir: str, max_poses_to_sample: int = 100) -> Tuple[dict,
     frames_with_pose = sum(1 for fr in frames if fr.get("pose"))
     has_pose = frames_with_pose > 0
     pose_coverage = frames_with_pose / num_frames if num_frames > 0 else 0.0
-    pose_pairs = _collect_pose_pairs(scene_dir, frames, max_poses_to_sample=max_poses_to_sample)
+    pose_pairs = _collect_pose_pairs(
+        scene_dir, frames, max_poses_to_sample=max_poses_to_sample
+    )
 
     # tag strings
     tag_list = _tags_from_stats(has_pose, has_extr, width, height, avg_pts, fps_pair)
@@ -199,17 +214,12 @@ def process_scene(scene_dir: str, max_poses_to_sample: int = 100) -> Tuple[dict,
             "width": width,
             "height": height,
             "distortion_model": cam_model,
-            "intrinsics_file": os.path.relpath(cam_json_path, scene_dir) if _exists(cam_json_path) else "",
+            "intrinsics_file": os.path.relpath(cam_json_path, scene_dir)
+            if _exists(cam_json_path)
+            else "",
         },
-        "extrinsics": {
-            "present": has_extr,
-            "file": extr_file_rel,
-        },
-        "lidar_points": {
-            "avg": int(avg_pts),
-            "min": min_pts,
-            "max": max_pts,
-        },
+        "extrinsics": {"present": has_extr, "file": extr_file_rel,},
+        "lidar_points": {"avg": int(avg_pts), "min": min_pts, "max": max_pts,},
         "pose": {
             "present": has_pose,
             "coverage": round(pose_coverage, 3),
@@ -241,23 +251,34 @@ def process_scene(scene_dir: str, max_poses_to_sample: int = 100) -> Tuple[dict,
 
     return tags_json, row
 
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", required=True, help="Dataset root (e.g., out/dataset)")
-    ap.add_argument("--write-parquet", action="store_true", help="Write <root>/tags.parquet")
+    ap.add_argument(
+        "--write-parquet", action="store_true", help="Write <root>/tags.parquet"
+    )
     ap.add_argument("--write-csv", action="store_true", help="Write <root>/tags.csv")
-    ap.add_argument("--max-poses-to-sample", type=int, default=100, help="Limit pose files to inspect for pair IDs")
+    ap.add_argument(
+        "--max-poses-to-sample",
+        type=int,
+        default=100,
+        help="Limit pose files to inspect for pair IDs",
+    )
     args = ap.parse_args()
 
     scenes = sorted(d for d in os.listdir(args.root) if d.startswith("scene_"))
     if not scenes:
-        print("No scenes found."); return
+        print("No scenes found.")
+        return
 
     rows = []
     for sc in scenes:
         scene_dir = os.path.join(args.root, sc)
         try:
-            tags_json, row = process_scene(scene_dir, max_poses_to_sample=args.max_poses_to_sample)
+            tags_json, row = process_scene(
+                scene_dir, max_poses_to_sample=args.max_poses_to_sample
+            )
             # write per-scene tags.json
             out_path = os.path.join(scene_dir, "tags.json")
             with open(out_path, "w") as f:
@@ -270,14 +291,19 @@ def main():
     # global outputs
     if rows and args.write_parquet:
         if not _HAS_PA:
-            print("WARNING: --write-parquet was requested but pyarrow is not installed.")
+            print(
+                "WARNING: --write-parquet was requested but pyarrow is not installed."
+            )
         else:
             table = pa.Table.from_pylist(rows)
             pq.write_table(table, os.path.join(args.root, "tags.parquet"))
-            print(f"Wrote {os.path.join(args.root, 'tags.parquet')} with {len(rows)} rows")
+            print(
+                f"Wrote {os.path.join(args.root, 'tags.parquet')} with {len(rows)} rows"
+            )
 
     if rows and args.write_csv:
         import csv
+
         out_csv = os.path.join(args.root, "tags.csv")
         with open(out_csv, "w", newline="") as f:
             w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
@@ -285,6 +311,7 @@ def main():
             for r in rows:
                 w.writerow(r)
         print(f"Wrote {out_csv} with {len(rows)} rows")
+
 
 if __name__ == "__main__":
     main()

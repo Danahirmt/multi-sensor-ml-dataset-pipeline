@@ -62,12 +62,15 @@ import torch
 from torch.utils.data import Dataset
 
 from utils import (
-    load_image,          # np.ndarray HxWx3 (BGR)
-    load_pointcloud,     # np.ndarray Nx4 (x,y,z,i) float32
-    load_pose_T_json,    # np.ndarray 4x4 float32
+    load_image,  # np.ndarray HxWx3 (BGR)
+    load_pointcloud,  # np.ndarray Nx4 (x,y,z,i) float32
+    load_pose_T_json,  # np.ndarray 4x4 float32
 )
 
-def _to_rgb_torch(img_bgr: np.ndarray, to_float: bool = True, div255: bool = True) -> torch.Tensor:
+
+def _to_rgb_torch(
+    img_bgr: np.ndarray, to_float: bool = True, div255: bool = True
+) -> torch.Tensor:
     # BGR -> RGB, HWC -> CHW
     img_rgb = img_bgr[:, :, ::-1].copy()
     t = torch.from_numpy(img_rgb).permute(2, 0, 1).contiguous()
@@ -77,12 +80,15 @@ def _to_rgb_torch(img_bgr: np.ndarray, to_float: bool = True, div255: bool = Tru
             t = t / 255.0
     return t  # [C,H,W]
 
+
 def _read_json(path: str) -> dict:
     with open(path, "r") as f:
         return json.load(f)
 
+
 def _maybe(path: str) -> Optional[str]:
     return path if (path and os.path.isfile(path)) else None
+
 
 class MultiSensorNuScenesLite(Dataset):
     def __init__(
@@ -119,7 +125,9 @@ class MultiSensorNuScenesLite(Dataset):
 
         # Build sample index across scenes (reading samples.json)
         self.samples: List[Dict] = []
-        self._scene_calib_cache: Dict[str, Dict[str, str]] = {}  # scene -> {"cam_intrinsics": ..., "static_extrinsics": ...}
+        self._scene_calib_cache: Dict[
+            str, Dict[str, str]
+        ] = {}  # scene -> {"cam_intrinsics": ..., "static_extrinsics": ...}
 
         for scene in self.scenes:
             scene_dir = os.path.join(root, scene)
@@ -143,11 +151,13 @@ class MultiSensorNuScenesLite(Dataset):
                     "timestamp_ns": int(fr.get("timestamp_ns", -1)),
                     "image_rel": fr.get("image_left", ""),
                     "lidar_rel": fr.get("lidar_front", ""),
-                    "pose_rel":  fr.get("pose", ""),
+                    "pose_rel": fr.get("pose", ""),
                     "calib": {
                         "cam_intrinsics": fr.get("calib", {}).get("cam_intrinsics", ""),
-                        "static_extrinsics": fr.get("calib", {}).get("static_extrinsics", ""),
-                    }
+                        "static_extrinsics": fr.get("calib", {}).get(
+                            "static_extrinsics", ""
+                        ),
+                    },
                 }
                 self.samples.append(rec)
 
@@ -161,9 +171,15 @@ class MultiSensorNuScenesLite(Dataset):
         """Return absolute paths for camera_left.json and T_*.json if referenced, else try scene-level cache."""
         scene = rec["scene"]
         scene_dir = rec["scene_dir"]
-        cam_intr_rel = rec["calib"].get("cam_intrinsics") or self._scene_calib_cache.get(scene, {}).get("cam_intrinsics", "")
-        stx_rel = rec["calib"].get("static_extrinsics") or self._scene_calib_cache.get(scene, {}).get("static_extrinsics", "")
-        cam_intr_abs = _maybe(os.path.join(scene_dir, cam_intr_rel)) if cam_intr_rel else None
+        cam_intr_rel = rec["calib"].get(
+            "cam_intrinsics"
+        ) or self._scene_calib_cache.get(scene, {}).get("cam_intrinsics", "")
+        stx_rel = rec["calib"].get("static_extrinsics") or self._scene_calib_cache.get(
+            scene, {}
+        ).get("static_extrinsics", "")
+        cam_intr_abs = (
+            _maybe(os.path.join(scene_dir, cam_intr_rel)) if cam_intr_rel else None
+        )
         stx_abs = _maybe(os.path.join(scene_dir, stx_rel)) if stx_rel else None
         return cam_intr_abs, stx_abs
 
@@ -177,7 +193,7 @@ class MultiSensorNuScenesLite(Dataset):
         out = {
             "width": int(d.get("width", 0)),
             "height": int(d.get("height", 0)),
-            "K": torch.from_numpy(K),          # [3,3] float32
+            "K": torch.from_numpy(K),  # [3,3] float32
             "D": torch.tensor(d.get("D", []), dtype=torch.float32),  # [Nd]
             "distortion_model": d.get("distortion_model", ""),
         }
@@ -201,49 +217,54 @@ class MultiSensorNuScenesLite(Dataset):
         scene_dir = rec["scene_dir"]
 
         # Paths
-        img_abs  = os.path.join(scene_dir, rec["image_rel"])
-        lidar_abs= os.path.join(scene_dir, rec["lidar_rel"])
+        img_abs = os.path.join(scene_dir, rec["image_rel"])
+        lidar_abs = os.path.join(scene_dir, rec["lidar_rel"])
         pose_abs = os.path.join(scene_dir, rec["pose_rel"]) if rec["pose_rel"] else None
 
         # Load image
-        img_bgr = load_image(img_abs)                      # HxWx3 (BGR)
-        img_t   = _to_rgb_torch(img_bgr, self.image_to_float, self.image_div255)  # [C,H,W]
+        img_bgr = load_image(img_abs)  # HxWx3 (BGR)
+        img_t = _to_rgb_torch(
+            img_bgr, self.image_to_float, self.image_div255
+        )  # [C,H,W]
         if self.transform_img is not None:
             img_t = self.transform_img(img_t)
 
         # Load pointcloud
-        pc_np = load_pointcloud(lidar_abs)                 # Nx4 float32
-        pc_t  = torch.from_numpy(pc_np.copy())             # [N,4]
+        pc_np = load_pointcloud(lidar_abs)  # Nx4 float32
+        pc_t = torch.from_numpy(pc_np.copy())  # [N,4]
         if self.transform_pc is not None:
             pc_t = self.transform_pc(pc_t)
 
         # Load optional pose (4x4)
         pose_T = None
         if pose_abs and os.path.isfile(pose_abs):
-            T = load_pose_T_json(pose_abs)                 # 4x4 float32 np
-            pose_T = torch.from_numpy(T)                   # [4,4]
+            T = load_pose_T_json(pose_abs)  # 4x4 float32 np
+            pose_T = torch.from_numpy(T)  # [4,4]
 
         # Calib (intrinsics + static extrinsics)
         intr_abs, stx_abs = self._resolve_calib_paths(rec)
         intr_dict = self._parse_intrinsics(intr_abs) if intr_abs else {}
-        stx_dict  = self._parse_static_extrinsics(stx_abs) if stx_abs else {}
+        stx_dict = self._parse_static_extrinsics(stx_abs) if stx_abs else {}
 
         sample: Dict[str, Union[torch.Tensor, int, dict, str, None]] = {
-            "image": img_t,                      # [C,H,W] float or uint8
-            "pointcloud": pc_t,                  # [N,4] float32
-            "pose_T": pose_T,                    # [4,4] float32 or None
-            "timestamp_ns": rec["timestamp_ns"], # int
-            "intrinsics": intr_dict,             # {"K":[3,3], "D":[Nd], ...} or {}
-            "static_extrinsics": stx_dict,       # {"frame_from","frame_to","T":[4,4]} or {}
+            "image": img_t,  # [C,H,W] float or uint8
+            "pointcloud": pc_t,  # [N,4] float32
+            "pose_T": pose_T,  # [4,4] float32 or None
+            "timestamp_ns": rec["timestamp_ns"],  # int
+            "intrinsics": intr_dict,  # {"K":[3,3], "D":[Nd], ...} or {}
+            "static_extrinsics": stx_dict,  # {"frame_from","frame_to","T":[4,4]} or {}
             "scene": rec["scene"],
         }
         if self.return_paths:
-            sample.update({
-                "image_path": img_abs,
-                "lidar_path": lidar_abs,
-                "pose_path": pose_abs or "",
-            })
+            sample.update(
+                {
+                    "image_path": img_abs,
+                    "lidar_path": lidar_abs,
+                    "pose_path": pose_abs or "",
+                }
+            )
         return sample
+
 
 def collate_default(batch: List[Dict]) -> Dict:
     """
@@ -254,18 +275,18 @@ def collate_default(batch: List[Dict]) -> Dict:
     - Keeps intrinsics/static_extrinsics as list of dicts
     """
     imgs = torch.stack([b["image"] for b in batch], dim=0)  # [B,C,H,W]
-    pcs  = [b["pointcloud"] for b in batch]                 # list of [Ni,4]
-    ts   = torch.tensor([b["timestamp_ns"] for b in batch], dtype=torch.int64)
+    pcs = [b["pointcloud"] for b in batch]  # list of [Ni,4]
+    ts = torch.tensor([b["timestamp_ns"] for b in batch], dtype=torch.int64)
     scenes = [b["scene"] for b in batch]
 
     poses_list = [b["pose_T"] for b in batch]
     if all(p is not None for p in poses_list):
-        poses = torch.stack(poses_list, dim=0)              # [B,4,4]
+        poses = torch.stack(poses_list, dim=0)  # [B,4,4]
     else:
-        poses = poses_list                                  # mixed availability
+        poses = poses_list  # mixed availability
 
     intrs = [b["intrinsics"] for b in batch]
-    stxs  = [b["static_extrinsics"] for b in batch]
+    stxs = [b["static_extrinsics"] for b in batch]
 
     out = {
         "image": imgs,
@@ -279,5 +300,5 @@ def collate_default(batch: List[Dict]) -> Dict:
     if "image_path" in batch[0]:
         out["image_path"] = [b["image_path"] for b in batch]
         out["lidar_path"] = [b["lidar_path"] for b in batch]
-        out["pose_path"]  = [b.get("pose_path", "") for b in batch]
+        out["pose_path"] = [b.get("pose_path", "") for b in batch]
     return out

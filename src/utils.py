@@ -52,14 +52,12 @@ Camera calibration:
 """
 
 
-
 import datetime as _dt
 import numpy as np
 import json
 import cv2
 from pointcloud2 import read_points
 from bisect import bisect_left
-
 
 
 CAM_TOPIC = "/sensor/camera/left/image_raw/compressed"
@@ -70,23 +68,32 @@ TF_STATIC_TOPIC = "/tf_static"
 
 
 def _to_ns(val):
-    if val is None: return None
+    if val is None:
+        return None
     if isinstance(val, (int, float)):
-        return int(val * 1e9) if isinstance(val, float) else int(val if val > 1e12 else val * 1e9)
+        return (
+            int(val * 1e9)
+            if isinstance(val, float)
+            else int(val if val > 1e12 else val * 1e9)
+        )
     if isinstance(val, _dt.datetime):
         if val.tzinfo is None:
             val = val.replace(tzinfo=_dt.timezone.utc)
         return int(val.timestamp() * 1e9)
     return None
 
+
 def get_topic(wrap):
     if hasattr(wrap, "topic"):
         return wrap.topic
     ch = getattr(wrap, "channel", None)
     if ch is not None:
-        if hasattr(ch, "topic"): return ch.topic
-        if isinstance(ch, dict) and "topic" in ch: return ch["topic"]
+        if hasattr(ch, "topic"):
+            return ch.topic
+        if isinstance(ch, dict) and "topic" in ch:
+            return ch["topic"]
     return "<unknown>"
+
 
 def get_log_time_ns(wrap):
     for attr in ("log_time", "publish_time", "logTime", "publishTime", "timestamp"):
@@ -96,6 +103,7 @@ def get_log_time_ns(wrap):
                 return ns
     return None
 
+
 def get_ros_message(wrap):
     for attr in ("ros_msg", "message", "msg"):
         if hasattr(wrap, attr):
@@ -104,15 +112,20 @@ def get_ros_message(wrap):
 
 
 def header_stamp_ns(msg):
-    if msg is None: return None
+    if msg is None:
+        return None
     hdr = getattr(msg, "header", None)
-    if hdr is None: return None
+    if hdr is None:
+        return None
     st = getattr(hdr, "stamp", None)
-    if st is None: return None
+    if st is None:
+        return None
     sec = getattr(st, "sec", None)
     nsec = getattr(st, "nanosec", None)
-    if sec is None or nsec is None: return None
+    if sec is None or nsec is None:
+        return None
     return int(sec) * 1_000_000_000 + int(nsec)
+
 
 def read_pointcloud4d(msg):
     """Return Nx4 array (x,y,z,intensity) from PointCloud2 ROS msg."""
@@ -120,11 +133,17 @@ def read_pointcloud4d(msg):
     x = arr["x"].astype(np.float32)
     y = arr["y"].astype(np.float32)
     z = arr["z"].astype(np.float32)
-    i = arr["intensity"].astype(np.float32) if "intensity" in arr.dtype.names else np.zeros_like(x, dtype=np.float32)
+    i = (
+        arr["intensity"].astype(np.float32)
+        if "intensity" in arr.dtype.names
+        else np.zeros_like(x, dtype=np.float32)
+    )
     return np.stack([x, y, z, i], axis=1)
 
+
 def build_segments(ts, max_gap_ns):
-    if not ts: return []
+    if not ts:
+        return []
     segs = []
     s = ts[0]
     last = ts[0]
@@ -135,6 +154,7 @@ def build_segments(ts, max_gap_ns):
         last = t
     segs.append((s, last))
     return segs
+
 
 def intersect(a, b):
     i = j = 0
@@ -150,8 +170,10 @@ def intersect(a, b):
             j += 1
     return out
 
+
 def lens(segs):
     return [round((e - s) / 1e9, 3) for (s, e) in segs]
+
 
 def nearest(ts_sorted, t, tol_ns):
     if len(ts_sorted) == 0:
@@ -165,11 +187,13 @@ def nearest(ts_sorted, t, tol_ns):
                 best_diff, best_idx = diff, j
     return best_idx if best_diff is not None and best_diff <= tol_ns else -1
 
+
 def load_image(path):
     img = cv2.imread(path, cv2.IMREAD_COLOR)
     if img is None:
         raise FileNotFoundError(f"Cannot read image: {path}")
     return img
+
 
 def load_pointcloud(path):
     pc = np.fromfile(path, dtype=np.float32)
@@ -180,34 +204,38 @@ def load_pointcloud(path):
         raise ValueError(f"Pointcloud has non-finite values: {path}")
     return pc
 
+
 def load_pose(path):
     d = json.load(open(path, "r"))
     R = np.array(d["R"], dtype=np.float32)
     t = np.array(d["t"], dtype=np.float32)
-    if R.shape != (3,3) or t.shape != (3,):
+    if R.shape != (3, 3) or t.shape != (3,):
         raise ValueError(f"Pose shape invalid: {path}")
     return R, t
 
 
-
 def quat_xyzw_to_mat44(x, y, z, w, tx, ty, tz):
-    n = x*x + y*y + z*z + w*w
+    n = x * x + y * y + z * z + w * w
     if n == 0.0:
         R = np.eye(3, dtype=np.float32)
     else:
         s = 2.0 / n
-        xx, yy, zz = x*x*s, y*y*s, z*z*s
-        xy, xz, yz = x*y*s, x*z*s, y*z*s
-        wx, wy, wz = w*x*s, w*y*s, w*z*s
-        R = np.array([
-            [1 - (yy + zz),     xy - wz,         xz + wy     ],
-            [xy + wz,           1 - (xx + zz),   yz - wx     ],
-            [xz - wy,           yz + wx,         1 - (xx + yy)]
-        ], dtype=np.float32)
+        xx, yy, zz = x * x * s, y * y * s, z * z * s
+        xy, xz, yz = x * y * s, x * z * s, y * z * s
+        wx, wy, wz = w * x * s, w * y * s, w * z * s
+        R = np.array(
+            [
+                [1 - (yy + zz), xy - wz, xz + wy],
+                [xy + wz, 1 - (xx + zz), yz - wx],
+                [xz - wy, yz + wx, 1 - (xx + yy)],
+            ],
+            dtype=np.float32,
+        )
     T = np.eye(4, dtype=np.float32)
     T[:3, :3] = R
     T[:3, 3] = np.array([tx, ty, tz], dtype=np.float32)
     return T
+
 
 def tf_msg_to_list(transform_stamped):
     hdr = getattr(transform_stamped, "header", None)
@@ -221,24 +249,34 @@ def tf_msg_to_list(transform_stamped):
     if t is None or q is None:
         return None
     T = quat_xyzw_to_mat44(
-        float(getattr(q, "x", 0.0)), float(getattr(q, "y", 0.0)), float(getattr(q, "z", 0.0)), float(getattr(q, "w", 1.0)),
-        float(getattr(t, "x", 0.0)), float(getattr(t, "y", 0.0)), float(getattr(t, "z", 0.0))
+        float(getattr(q, "x", 0.0)),
+        float(getattr(q, "y", 0.0)),
+        float(getattr(q, "z", 0.0)),
+        float(getattr(q, "w", 1.0)),
+        float(getattr(t, "x", 0.0)),
+        float(getattr(t, "y", 0.0)),
+        float(getattr(t, "z", 0.0)),
     )
     return (parent_frame_id.strip(), child_frame_id.strip(), T)
 
+
 def invert(T):
-    R = T[:3, :3]; t = T[:3, 3]
+    R = T[:3, :3]
+    t = T[:3, 3]
     Ti = np.eye(4, dtype=np.float32)
     Ti[:3, :3] = R.T
-    Ti[:3, 3] = - R.T @ t
+    Ti[:3, 3] = -R.T @ t
     return Ti
+
 
 def compose(A, B):
     return (A @ B).astype(np.float32)
 
+
 def solve_chain(static_graph, src, dst):
     """Find T_src_dst by BFS over /tf_static graph (bidirectional)."""
     from collections import deque
+
     q = deque([(src, np.eye(4, dtype=np.float32))])
     seen = {src}
     while q:
@@ -246,17 +284,18 @@ def solve_chain(static_graph, src, dst):
         if cur == dst:
             return T_acc
         for (nbr, T_cur_nbr) in static_graph.get(cur, []):
-            if nbr in seen: 
+            if nbr in seen:
                 continue
             seen.add(nbr)
             q.append((nbr, compose(T_acc, T_cur_nbr)))
     return None
 
+
 def camera_info_to_json(msg):
     d = {
         "width": int(getattr(msg, "width", 0) or 0),
         "height": int(getattr(msg, "height", 0) or 0),
-        "K": list(map(float, getattr(msg, "k", getattr(msg, "K", [0]*9)))),
+        "K": list(map(float, getattr(msg, "k", getattr(msg, "K", [0] * 9)))),
         "D": list(map(float, getattr(msg, "d", getattr(msg, "D", [])))),
         "distortion_model": str(getattr(msg, "distortion_model", "")),
     }
@@ -265,6 +304,8 @@ def camera_info_to_json(msg):
         if arr is not None and hasattr(arr, "__len__"):
             d["K"] = [float(x) for x in arr][:9]
     return d
+
+
 def load_pose_T_json(path):
     """Load a 4x4 pose matrix stored under key 'T' in a JSON file."""
     d = json.load(open(path, "r"))

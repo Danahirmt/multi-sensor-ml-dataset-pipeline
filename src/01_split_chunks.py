@@ -51,6 +51,7 @@ from utils import (
 
 
 import yaml
+
 with open("configs/split_chunks.yaml") as f:
     cfg = yaml.safe_load(f)
 mcap_path = cfg["mcap_path"]
@@ -88,6 +89,7 @@ def get_time_ns(wrap, mode: str):
                 return ns
     return None
 
+
 def gap_stats(ts):
     if len(ts) < 2:
         return {"count": len(ts), "median_ms": 0.0, "p95_ms": 0.0, "max_ms": 0.0}
@@ -99,6 +101,7 @@ def gap_stats(ts):
         "max_ms": float(np.max(d)),
     }
 
+
 def count_in_range(sorted_ts, start_ns, end_ns):
     lo = bisect_left(sorted_ts, start_ns)
     hi = bisect_right(sorted_ts, end_ns)
@@ -106,7 +109,7 @@ def count_in_range(sorted_ts, start_ns, end_ns):
 
 
 def main():
-    
+
     lidar_ts = []
     cam_ts = []
     for wrap in read_ros2_messages(mcap_path, topics=[lidar_topic, cam_topic]):
@@ -126,9 +129,15 @@ def main():
     if debug:
         ls = gap_stats(lidar_ts)
         cs = gap_stats(cam_ts)
-        print(f"[{time_source}] Collected: lidar={ls['count']} ts, cam={cs['count']} ts")
-        print(f"[{time_source}] LiDAR gaps ms: median={ls['median_ms']:.1f}, p95={ls['p95_ms']:.1f}, max={ls['max_ms']:.1f}")
-        print(f"[{time_source}] Camera gaps ms: median={cs['median_ms']:.1f}, p95={cs['p95_ms']:.1f}, max={cs['max_ms']:.1f}")
+        print(
+            f"[{time_source}] Collected: lidar={ls['count']} ts, cam={cs['count']} ts"
+        )
+        print(
+            f"[{time_source}] LiDAR gaps ms: median={ls['median_ms']:.1f}, p95={ls['p95_ms']:.1f}, max={ls['max_ms']:.1f}"
+        )
+        print(
+            f"[{time_source}] Camera gaps ms: median={cs['median_ms']:.1f}, p95={cs['p95_ms']:.1f}, max={cs['max_ms']:.1f}"
+        )
 
     seg_lidar = build_segments(lidar_ts, max_gap_ns)
     seg_cam = build_segments(cam_ts, max_gap_ns)
@@ -147,18 +156,20 @@ def main():
         "max_gap_ms": max_gap_ms,
         "min_length_s": min_length_s,
         "time_source": time_source,
-        "chunks": []
+        "chunks": [],
     }
 
     for idx, (s, e) in enumerate(chunks):
-        manifest["chunks"].append({
-            "id": idx,
-            "start_ns": int(s),
-            "end_ns": int(e),
-            "duration_s": round((e - s) / 1e9, 3),
-            "lidar_msgs": count_in_range(lidar_ts, s, e),
-            "camera_msgs": count_in_range(cam_ts, s, e),
-        })
+        manifest["chunks"].append(
+            {
+                "id": idx,
+                "start_ns": int(s),
+                "end_ns": int(e),
+                "duration_s": round((e - s) / 1e9, 3),
+                "lidar_msgs": count_in_range(lidar_ts, s, e),
+                "camera_msgs": count_in_range(cam_ts, s, e),
+            }
+        )
 
     with open(out_path, "w") as f:
         json.dump(manifest, f, indent=2)
@@ -166,11 +177,14 @@ def main():
     if manifest["chunks"]:
         print(f"[{time_source}] Found {len(manifest['chunks'])} usable chunk(s):")
         for c in manifest["chunks"]:
-            print(f"  - chunk_{c['id']:03d}: {c['duration_s']}s (lidar={c['lidar_msgs']}, cam={c['camera_msgs']})")
+            print(
+                f"  - chunk_{c['id']:03d}: {c['duration_s']}s (lidar={c['lidar_msgs']}, cam={c['camera_msgs']})"
+            )
         print(f"Manifest written to: {out_path}")
     else:
         print(f"[{time_source}] No usable chunks found with current thresholds.")
         print(f"Manifest written to: {out_path}")
+
 
 if __name__ == "__main__":
     main()

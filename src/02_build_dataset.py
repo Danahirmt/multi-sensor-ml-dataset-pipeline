@@ -42,6 +42,7 @@ import cv2
 try:
     import pyarrow as pa
     import pyarrow.parquet as pq
+
     _HAS_PA = True
 except ImportError:
     _HAS_PA = False
@@ -67,6 +68,7 @@ from utils import (
 )
 
 import yaml
+
 with open("configs/build_dataset.yaml") as f:
     cfg = yaml.safe_load(f)
 
@@ -87,6 +89,7 @@ pair_off_ns = int(pair_offset_ms * 1e6)
 
 def _sanitize_fname(s: str) -> str:
     return "".join(ch if ch.isalnum() or ch in ("_", "-") else "_" for ch in s)
+
 
 def main():
     os.makedirs(out_dir, exist_ok=True)
@@ -156,13 +159,19 @@ def main():
             calib_files["cam_intrinsics"] = "calib/camera_left.json"
 
         if T_cam_lidar is not None:
-            fname = f"T_{_sanitize_fname(cam_frame)}__{_sanitize_fname(lidar_frame)}.json"
+            fname = (
+                f"T_{_sanitize_fname(cam_frame)}__{_sanitize_fname(lidar_frame)}.json"
+            )
             with open(os.path.join(paths["calib"], fname), "w") as f:
-                json.dump({
-                    "frame_from": cam_frame,
-                    "frame_to": lidar_frame,
-                    "T": T_cam_lidar.tolist()
-                }, f, indent=2)
+                json.dump(
+                    {
+                        "frame_from": cam_frame,
+                        "frame_to": lidar_frame,
+                        "T": T_cam_lidar.tolist(),
+                    },
+                    f,
+                    indent=2,
+                )
             calib_files["static_extrinsics"] = os.path.join("calib", fname)
         elif debug:
             print("[warn] No static extrinsics between camera and lidar")
@@ -171,7 +180,9 @@ def main():
         lidar_ts, lidar_paths = [], []
         tf_buffer = []
 
-        for wrap in read_ros2_messages(mcap_path, topics=[cam_topic, lidar_topic, TF_TOPIC]):
+        for wrap in read_ros2_messages(
+            mcap_path, topics=[cam_topic, lidar_topic, TF_TOPIC]
+        ):
             topic = get_topic(wrap)
             msg = get_ros_message(wrap)
             if msg is None:
@@ -184,7 +195,11 @@ def main():
                 img = cv2.imdecode(np.frombuffer(msg.data, np.uint8), cv2.IMREAD_COLOR)
                 if img is not None:
                     fname = f"{tns}.jpg"
-                    cv2.imwrite(os.path.join(paths["images"], fname), img, [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality])
+                    cv2.imwrite(
+                        os.path.join(paths["images"], fname),
+                        img,
+                        [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality],
+                    )
                     cam_ts.append(tns)
                     cam_paths.append(os.path.join("images", "left", fname))
 
@@ -201,7 +216,9 @@ def main():
                     if rec:
                         parent, child, T = rec
                         ts_tf = header_stamp_ns(tfs) or tns
-                        tf_buffer.append((int(ts_tf), parent, child, T.astype(np.float32)))
+                        tf_buffer.append(
+                            (int(ts_tf), parent, child, T.astype(np.float32))
+                        )
 
         cam_ts_sorted = np.array(sorted(cam_ts), dtype=np.int64)
         lidar_ts_sorted = np.array(sorted(lidar_ts), dtype=np.int64)
@@ -225,12 +242,16 @@ def main():
                 pose_fname = f"{t}.json"
                 pose_path = os.path.join("poses", pose_fname)
                 with open(os.path.join(paths["poses"], pose_fname), "w") as f:
-                    json.dump({
-                        "timestamp_ns": int(t),
-                        "frame_from": parent,
-                        "frame_to": child,
-                        "T": T.tolist()
-                    }, f, indent=2)
+                    json.dump(
+                        {
+                            "timestamp_ns": int(t),
+                            "frame_from": parent,
+                            "frame_to": child,
+                            "T": T.tolist(),
+                        },
+                        f,
+                        indent=2,
+                    )
 
             frame = {
                 "sample_id": str(t),
@@ -240,24 +261,22 @@ def main():
                 "pose": pose_path,
                 "calib": {
                     "cam_intrinsics": calib_files.get("cam_intrinsics", ""),
-                    "static_extrinsics": calib_files.get("static_extrinsics", "")
-                }
+                    "static_extrinsics": calib_files.get("static_extrinsics", ""),
+                },
             }
             frames.append(frame)
 
             if write_parquet:
-                parquet_rows.append({
-                    "scene_id": f"scene_{cid:03d}",
-                    **frame,
-                    **frame["calib"]
-                })
+                parquet_rows.append(
+                    {"scene_id": f"scene_{cid:03d}", **frame, **frame["calib"]}
+                )
 
         samples = {
             "scene_id": f"scene_{cid:03d}",
             "start_ns": start_ns,
             "end_ns": end_ns,
             "num_frames": len(frames),
-            "frames": frames
+            "frames": frames,
         }
         with open(os.path.join(paths["index"], "samples.json"), "w") as f:
             json.dump(samples, f, indent=2)
@@ -267,9 +286,12 @@ def main():
     if write_parquet and _HAS_PA:
         table = pa.Table.from_pylist(parquet_rows)
         pq.write_table(table, os.path.join(out_dir, "manifest.parquet"))
-        print(f"manifest.parquet written to {os.path.join(out_dir, 'manifest.parquet')}")
+        print(
+            f"manifest.parquet written to {os.path.join(out_dir, 'manifest.parquet')}"
+        )
     elif write_parquet and not _HAS_PA:
         print("WARNING: pyarrow not available for writing manifest.parquet")
+
 
 if __name__ == "__main__":
     main()

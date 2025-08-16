@@ -31,13 +31,15 @@ import argparse
 import numpy as np
 
 from utils import (
-    load_image,          # uses OpenCV, returns np.ndarray HxWx3
-    load_pointcloud,     # returns np.ndarray Nx4
-    load_pose_T_json,    # new helper for {"T": 4x4}
+    load_image,  # uses OpenCV, returns np.ndarray HxWx3
+    load_pointcloud,  # returns np.ndarray Nx4
+    load_pose_T_json,  # new helper for {"T": 4x4}
 )
+
 
 def _exists(p: str) -> bool:
     return os.path.exists(p)
+
 
 def _find_any_extrinsics_file(calib_dir: str) -> str:
     if not _exists(calib_dir):
@@ -47,13 +49,14 @@ def _find_any_extrinsics_file(calib_dir: str) -> str:
             return os.path.join(calib_dir, fn)
     return ""
 
+
 def validate_scene(scene_dir: str, samples_per_scene: int = 5):
     scene_name = os.path.basename(scene_dir)
-    idx_path   = os.path.join(scene_dir, "index", "samples.json")
-    img_dir    = os.path.join(scene_dir, "images", "left")
-    pc_dir     = os.path.join(scene_dir, "lidar")
-    pose_dir   = os.path.join(scene_dir, "poses")
-    calib_dir  = os.path.join(scene_dir, "calib")
+    idx_path = os.path.join(scene_dir, "index", "samples.json")
+    img_dir = os.path.join(scene_dir, "images", "left")
+    pc_dir = os.path.join(scene_dir, "lidar")
+    pose_dir = os.path.join(scene_dir, "poses")
+    calib_dir = os.path.join(scene_dir, "calib")
 
     problems = []
     warnings = []
@@ -76,18 +79,26 @@ def validate_scene(scene_dir: str, samples_per_scene: int = 5):
 
     extr_path = _find_any_extrinsics_file(calib_dir)
     if not extr_path:
-        problems.append(f"[{scene_name}] missing static extrinsics (no T_*.json in calib/)")
+        problems.append(
+            f"[{scene_name}] missing static extrinsics (no T_*.json in calib/)"
+        )
 
     # Quick counts on disk
-    n_img_disk = sum(1 for e in os.scandir(img_dir) if e.is_file()) if _exists(img_dir) else 0
-    n_pc_disk  = sum(1 for e in os.scandir(pc_dir)  if e.is_file()) if _exists(pc_dir)  else 0
+    n_img_disk = (
+        sum(1 for e in os.scandir(img_dir) if e.is_file()) if _exists(img_dir) else 0
+    )
+    n_pc_disk = (
+        sum(1 for e in os.scandir(pc_dir) if e.is_file()) if _exists(pc_dir) else 0
+    )
     if n_index == 0:
         problems.append(f"[{scene_name}] samples.json has 0 frames")
     if n_img_disk == 0 or n_pc_disk == 0:
-        problems.append(f"[{scene_name}] empty images or lidar folder (img={n_img_disk}, lidar={n_pc_disk})")
+        problems.append(
+            f"[{scene_name}] empty images or lidar folder (img={n_img_disk}, lidar={n_pc_disk})"
+        )
 
     # Sample a few frames
-    sample_frames = frames[:min(samples_per_scene, len(frames))]
+    sample_frames = frames[: min(samples_per_scene, len(frames))]
     for fr in sample_frames:
         ip = os.path.join(scene_dir, fr.get("image_left", ""))
         lp = os.path.join(scene_dir, fr.get("lidar_front", ""))
@@ -102,7 +113,7 @@ def validate_scene(scene_dir: str, samples_per_scene: int = 5):
         # Load checks
         try:
             img = load_image(ip)
-            pc  = load_pointcloud(lp)
+            pc = load_pointcloud(lp)
             if pp:
                 T = load_pose_T_json(pp)
         except Exception as e:
@@ -121,13 +132,18 @@ def validate_scene(scene_dir: str, samples_per_scene: int = 5):
         if stx_rel:
             stx_abs = os.path.join(scene_dir, stx_rel)
             if not _exists(stx_abs):
-                problems.append(f"[{scene_name}] frame calib.static_extrinsics missing: {stx_abs}")
+                problems.append(
+                    f"[{scene_name}] frame calib.static_extrinsics missing: {stx_abs}"
+                )
 
-    print(f"[{scene_name}] index={n_index}  imgs_on_disk={n_img_disk}  "
-          f"lidars_on_disk={n_pc_disk}  checked={len(sample_frames)}  "
-          f"{'OK' if not problems else 'ISSUES'}")
+    print(
+        f"[{scene_name}] index={n_index}  imgs_on_disk={n_img_disk}  "
+        f"lidars_on_disk={n_pc_disk}  checked={len(sample_frames)}  "
+        f"{'OK' if not problems else 'ISSUES'}"
+    )
 
     return n_index, problems, warnings
+
 
 def maybe_check_parquet(root: str):
     parquet_path = os.path.join(root, "manifest.parquet")
@@ -136,10 +152,12 @@ def maybe_check_parquet(root: str):
         return
     try:
         import pyarrow.parquet as pq
+
         table = pq.read_table(parquet_path, columns=["scene_id", "timestamp_ns"])
         print(f"manifest.parquet OK  rows={table.num_rows}  cols={table.num_columns}")
     except Exception as e:
         print(f"manifest.parquet check failed: {e}")
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -148,7 +166,11 @@ def main():
     ap.add_argument("--check-parquet", action="store_true")
     args = ap.parse_args()
 
-    scenes = sorted(os.path.join(args.root, d) for d in os.listdir(args.root) if d.startswith("scene_"))
+    scenes = sorted(
+        os.path.join(args.root, d)
+        for d in os.listdir(args.root)
+        if d.startswith("scene_")
+    )
     if not scenes:
         print("No scenes found.")
         return
@@ -177,6 +199,7 @@ def main():
 
     if args.check_parquet:
         maybe_check_parquet(args.root)
+
 
 if __name__ == "__main__":
     main()

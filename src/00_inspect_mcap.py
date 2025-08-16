@@ -37,14 +37,18 @@ from utils import (
     get_ros_message,
     read_pointcloud4d,
     CAM_TOPIC,
-    LIDAR_TOPIC
+    LIDAR_TOPIC,
 )
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--mcap", required=True, help="Path to .mcap file")
-    ap.add_argument("--save-sample", action="store_true", help="Save one image and one LiDAR sample to out_smoke/")
+    ap.add_argument(
+        "--save-sample",
+        action="store_true",
+        help="Save one image and one LiDAR sample to out_smoke/",
+    )
     args = ap.parse_args()
 
     if not os.path.exists(args.mcap):
@@ -91,7 +95,6 @@ def main():
             topic = get_topic(wrap)
             msg = get_ros_message(wrap)
 
-
             if topic == CAM_TOPIC and not saved_img:
                 buf = np.frombuffer(msg.data, dtype=np.uint8)
                 img = cv2.imdecode(buf, cv2.IMREAD_COLOR)
@@ -113,6 +116,7 @@ def main():
             print("Warning: no camera sample saved.")
         if not saved_pcl:
             print("Warning: no LiDAR sample saved.")
+
 
 if __name__ == "__main__":
     main()

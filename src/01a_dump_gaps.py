@@ -36,11 +36,8 @@ from utils import (
     intersect,
     lens,
     CAM_TOPIC,
-    LIDAR_TOPIC
+    LIDAR_TOPIC,
 )
-
-
-
 
 
 def main():
@@ -48,14 +45,18 @@ def main():
     ap.add_argument("--mcap", required=True)
     ap.add_argument("--max-gap-ms", type=float, default=150.0)
     ap.add_argument("--min-length-s", type=float, default=40.0)
-    ap.add_argument("--time-source", choices=["sensor","log"], default="sensor",
-                    help="Prefer sensor header.stamp or MCAP log/publish time")
+    ap.add_argument(
+        "--time-source",
+        choices=["sensor", "log"],
+        default="sensor",
+        help="Prefer sensor header.stamp or MCAP log/publish time",
+    )
     ap.add_argument("--out-report", default="out/gaps_report.txt")
     args = ap.parse_args()
 
     os.makedirs(os.path.dirname(args.out_report), exist_ok=True)
-    max_gap_ns = int(args.max_gap_ms*1e6)
-    min_len_ns = int(args.min_length_s*1e9)
+    max_gap_ns = int(args.max_gap_ms * 1e6)
+    min_len_ns = int(args.min_length_s * 1e9)
 
     # 1) collect timestamps
     lidar, cam = [], []
@@ -65,37 +66,47 @@ def main():
             t = header_stamp_ns(get_ros_message(w))
         if t is None:  # fallback or mode=log
             t = get_log_time_ns(w)
-        if t is None: 
+        if t is None:
             continue
         topic = get_topic(w)
-        if topic == LIDAR_TOPIC: lidar.append(t)
-        elif topic == CAM_TOPIC: cam.append(t)
+        if topic == LIDAR_TOPIC:
+            lidar.append(t)
+        elif topic == CAM_TOPIC:
+            cam.append(t)
 
-    lidar.sort(); cam.sort()
+    lidar.sort()
+    cam.sort()
     if not lidar or not cam:
-        print("Missing lidar/camera timestamps"); 
+        print("Missing lidar/camera timestamps")
         return
 
-    def gaps(ts): 
-        if len(ts) < 2: return np.array([], dtype=np.int64)
+    def gaps(ts):
+        if len(ts) < 2:
+            return np.array([], dtype=np.int64)
         return np.diff(np.array(ts, dtype=np.int64))
 
-    gL = gaps(lidar); gC = gaps(cam)
+    gL = gaps(lidar)
+    gC = gaps(cam)
     segL = build_segments(lidar, max_gap_ns)
-    segC = build_segments(cam,   max_gap_ns)
+    segC = build_segments(cam, max_gap_ns)
     common = intersect(segL, segC)
-    common_len = sorted([(e-s,(s,e)) for (s,e) in common], reverse=True)
+    common_len = sorted([(e - s, (s, e)) for (s, e) in common], reverse=True)
 
     with open(args.out_report, "w") as f:
-        def wline(x=""): f.write(str(x)+"\n")
+
+        def wline(x=""):
+            f.write(str(x) + "\n")
+
         wline(f"File: {args.mcap}")
         wline(f"Time source: {args.time_source}")
         wline(f"Max gap: {args.max_gap_ms} ms | Min length: {args.min_length_s} s")
         wline()
         for name, g in [("LiDAR", gL), ("Camera", gC)]:
             if g.size:
-                ms = g/1e6
-                wline(f"[{name}] gaps ms: count={ms.size}, median={np.median(ms):.2f}, p95={np.percentile(ms,95):.2f}, max={ms.max():.2f}")
+                ms = g / 1e6
+                wline(
+                    f"[{name}] gaps ms: count={ms.size}, median={np.median(ms):.2f}, p95={np.percentile(ms,95):.2f}, max={ms.max():.2f}"
+                )
                 top_idx = np.argsort(ms)[-10:][::-1]
                 wline(f"  Top 10 gaps (ms): {ms[top_idx].round(2).tolist()}")
             else:
@@ -106,14 +117,15 @@ def main():
         wline(f"Common segments (s): {lens(common)}")
         wline()
         wline("Top-5 longest COMMON segments (start_ns, end_ns, length_s):")
-        for k,(L,(s,e)) in enumerate(common_len[:5]):
+        for k, (L, (s, e)) in enumerate(common_len[:5]):
             wline(f"  {k+1}. {s} .. {e}  ({L/1e9:.3f}s)")
-        ok = any((e-s) >= min_len_ns for (s,e) in common)
+        ok = any((e - s) >= min_len_ns for (s, e) in common)
         wline()
         wline(f"Exists >= {args.min_length_s}s common chunk?  {'YES' if ok else 'NO'}")
 
     print(f"Report written: {args.out_report}")
     print(open(args.out_report).read())
+
 
 if __name__ == "__main__":
     main()

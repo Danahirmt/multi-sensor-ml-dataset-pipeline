@@ -26,10 +26,11 @@ jobs:
           pip install torch  # CPU build OK for smoke
           pip install black
 
-      - name: Obtain MCAP (fixture)
+      - name: Obtain MCAP (fixture from Drive)
         if: ${{ inputs.mcap_url != '' }}
         run: |
-          curl -L "${{ inputs.mcap_url }}" -o kitti.mcap
+            gdown --fuzzy "${{ inputs.mcap_url }}" -O kitti.mcap
+            ls -lh kitti.mcap
 
       - name: Run gaps analysis + plots
         run: |

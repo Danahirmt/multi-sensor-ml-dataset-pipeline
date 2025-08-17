@@ -12,7 +12,7 @@ Using **sensor timestamps** and a **150 ms** max inter-message gap, gap analysis
 > **Note:** All thresholds and the time base are configurable via YAML (`min_length_s`, `max_gap_ms`, `time_source = sensor | log`).
 
 <p align="center">
-  <img src="out/figs/segments_timeline.png" alt="Timeline of valid segments" width="90%">
+  <img src="../out/figs/segments_timeline.png" alt="Timeline of valid segments" width="90%">
 </p>
 <p align="center"><em>Timeline of valid segments per sensor and their common overlap. No shared segment ≥ 40s exists under current gap constraints.</em></p>
 
@@ -36,7 +36,8 @@ An optional global `manifest.parquet` lists samples across scenes for fast tabul
 - **Efficient.** Point clouds are stored as raw float32 `[N,4]`; images are JPEG; pairing is done once during build time.
 - **Low complexity.** No custom container formats or heavy dependencies are required for training.
 - **Quality & validation.** Configuration is YAML-driven and a validator checks `samples.json`, file presence, decodability (image/LiDAR), and calib/pose consistency.
-- **Scales cleanly.** The optional Parquet manifest provides fast global filtering (PyArrow/Polars/Spark) without changing the per-scene training layout.
+- **Scales cleanly.** The format supports training directly from per-scene folders, and an optional Parquet manifest (`manifest.parquet`) enables fast global filtering or analytics (e.g., with PyArrow or Polars) — without modifying the training layout.
+
 
 ### What the builder actually does (`02_build_dataset.py`)
 1. **Reads config & chunk manifest** (`configs/build_dataset.yaml`, `out/chunks_demo.json`).
@@ -171,4 +172,4 @@ Outputs:
 - Recording ≈ **114.0 s**; ≈ **1087** camera / ≈ **1081** LiDAR messages.
 - Gaps (sensor time): median ≈ **103.6 ms**; **max ≈ 1.14 s** → no ≥ 40 s common segment at 150 ms.
 - Output: **3 scenes ~20.5–20.6 s**; **596 paired samples** total; validation passed; tags generated; global Parquet manifest written.
-See full commands, console output, and artifacts: **[docs/EVIDENCE.md](docs/EVIDENCE.md)**.
+See full commands, console output, and artifacts: **[**EVIDENCE.md**](EVIDENCE.md)**.

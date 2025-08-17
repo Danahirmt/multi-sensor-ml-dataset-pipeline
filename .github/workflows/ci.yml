@@ -29,13 +29,12 @@ jobs:
         run: black --check src/ examples/
 
       - name: Smoke import
+        working-directory: src
         run: |
           python - << 'PY'
           import importlib
-          for m in [
-              "utils",
-              "multi_sensor_dataset",
-          ]:
+          for m in ["utils", "multi_sensor_dataset"]:
               importlib.import_module(m)
               print(f"OK import: {m}")
           PY
+

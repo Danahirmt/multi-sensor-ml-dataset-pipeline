@@ -101,8 +101,14 @@ python src/02_build_dataset.py
 Config: `configs/build_dataset.yaml`
 
 Outputs:
-- `scene_XXX/` folders with image, LiDAR, pose, calib
-- `samples.json`, Parquet/CSV index (optional)
+- Per-scene folders (`scene_XXX/`) containing:
+  - `images/left/*.jpg`
+  - `lidar/*.bin` (float32 Nx4: x, y, z, intensity)
+  - `poses/*.json` (optional, dynamic TF pose)
+  - `calib/camera_left.json` and `calib/T_*.json`
+  - `index/samples.json` (scene-level sample index)
+- Global:
+  - `manifest.parquet` (optional, if `write_parquet=True)
 
 
 
@@ -193,7 +199,7 @@ multi-sensor-ml-dataset-pipeline/
 
 ##  Dependencies
 
-- Python 3.8+
+- Python 3.10+
 - `numpy`, `opencv-python`
 - `matplotlib` (for plotting)
 - `pyarrow` (for Parquet support)

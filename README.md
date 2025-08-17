@@ -145,21 +145,6 @@ Outputs:
 
 Defined in [`src/multi_sensor_dataset.py`](src/multi_sensor_dataset.py)
 
-### Example
-
-```python
-from src.multi_sensor_dataset import MultiSensorNuScenesLite, collate_default
-from torch.utils.data import DataLoader
-
-ds = MultiSensorNuScenesLite(root="out/dataset")
-dl = DataLoader(ds, batch_size=4, collate_fn=collate_default)
-
-batch = next(iter(dl))
-print(batch["image"].shape)         # [B, 3, H, W]
-print(batch["pointcloud"][0].shape) # [N, 4]
-```
-
----
 
 ## 🧪 Examples
 
@@ -174,7 +159,6 @@ python examples/analyze_tags.py         # Print tag stats from tags.csv
 ## 📁 Directory Structure
 
 ```
-multi-sensor-ml-dataset-pipeline/
 ├── configs/                  # YAML config files
 ├── examples/                 # Example scripts
 ├── out/                      # Output folder
@@ -199,7 +183,7 @@ multi-sensor-ml-dataset-pipeline/
 
 ##  Dependencies
 
-- Python 3.10+
+- Python 3.11+
 - `numpy`, `opencv-python`
 - `matplotlib` (for plotting)
 - `pyarrow` (for Parquet support)

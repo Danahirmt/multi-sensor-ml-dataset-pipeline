@@ -23,7 +23,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install torch  # CPU build OK for smoke
+          pip install torch gdown 
           pip install black
 
       - name: Obtain MCAP (fixture from Drive)
